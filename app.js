@@ -9,17 +9,20 @@ const importFileInput = document.getElementById('import-file');
 const sortModeSelect = document.getElementById('sort-mode');
 const list = document.getElementById('bookmark-list');
 const count = document.getElementById('bookmark-count');
-const clearAllButton = document.getElementById('clear-all');
 const status = document.getElementById('status');
 const domainTabs = document.getElementById('domain-tabs');
 
 const incomingShare = readIncomingShare();
 const bookmarks = loadBookmarks();
 let activeDomain = '';
+const focusTitleAfterSave = Boolean(incomingShare.url);
 
 if (incomingShare.url) {
   titleInput.value = incomingShare.title ?? '';
   input.value = incomingShare.url;
+  if (!incomingShare.saveOnLoad) {
+    window.setTimeout(() => titleInput.focus(), 0);
+  }
 }
 
 if (incomingShare.saveOnLoad) {
@@ -90,16 +93,67 @@ function readIncomingShare() {
   const params = new URLSearchParams(window.location.search);
   const urlValue = params.get('url')?.trim() ?? '';
   const titleValue = params.get('title')?.trim() ?? '';
+  const shareValue = params.get('share')?.trim() ?? '';
   const payloadValue = params.get('payload')?.trim() ?? '';
   const saveOnLoad = params.get('save') === '1' || params.get('autopost') === '1';
 
   const payload = parseIncomingPayload(payloadValue);
+  const sharedPair = parseSharedPair(shareValue);
 
   return {
-    url: payload.url || urlValue,
-    title: payload.title || titleValue,
+    url: payload.url || sharedPair.url || urlValue,
+    title: payload.title || sharedPair.title || titleValue,
     saveOnLoad,
   };
+}
+
+function parseSharedPair(rawValue) {
+  if (!rawValue) {
+    return { url: '', title: '' };
+  }
+
+  const decodedValue = safeDecodeText(rawValue);
+  const pipeIndex = decodedValue.indexOf('|');
+  if (pipeIndex > 0) {
+    return {
+      title: decodedValue.slice(0, pipeIndex).trim(),
+      url: decodedValue.slice(pipeIndex + 1).trim(),
+    };
+  }
+
+  const dashIndex = decodedValue.indexOf(' - ');
+  if (dashIndex > 0) {
+    return {
+      title: decodedValue.slice(0, dashIndex).trim(),
+      url: decodedValue.slice(dashIndex + 3).trim(),
+    };
+  }
+
+  const hyphenIndex = decodedValue.indexOf('-');
+  if (hyphenIndex > 0) {
+    const left = decodedValue.slice(0, hyphenIndex).trim();
+    const right = decodedValue.slice(hyphenIndex + 1).trim();
+    if (looksLikeUrl(right)) {
+      return {
+        title: left,
+        url: right,
+      };
+    }
+  }
+
+  return { url: '', title: decodedValue.trim() };
+}
+
+function safeDecodeText(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function looksLikeUrl(value) {
+  return /^https?:\/\//i.test(value);
 }
 
 function parseIncomingPayload(payloadValue) {
@@ -281,7 +335,6 @@ function upsertBookmark(rawValue) {
   bookmarks.unshift(bookmark);
   saveBookmarks();
   render();
-  setStatus(`「${bookmark.domain}」に保存しました`);
 }
 
 form.addEventListener('submit', (event) => {
@@ -293,26 +346,14 @@ form.addEventListener('submit', (event) => {
       titleValue: titleInput.value,
     });
     form.reset();
-    input.focus();
+    if (focusTitleAfterSave) {
+      titleInput.focus();
+    } else {
+      input.focus();
+    }
   } catch (error) {
     setStatus(error instanceof Error ? error.message : 'URLを保存できませんでした');
   }
-});
-
-clearAllButton.addEventListener('click', () => {
-  if (bookmarks.length === 0) {
-    return;
-  }
-
-  const confirmed = window.confirm('保存済みのブックマークをすべて削除しますか？');
-  if (!confirmed) {
-    return;
-  }
-
-  bookmarks.splice(0, bookmarks.length);
-  saveBookmarks();
-  render();
-  setStatus('すべて削除しました');
 });
 
 sortModeSelect.addEventListener('change', () => {
@@ -335,7 +376,6 @@ exportButton.addEventListener('click', () => {
     exportedAt: new Date().toISOString(),
     bookmarks,
   });
-  setStatus('データを書き出しました');
 });
 
 importButton.addEventListener('click', () => {
@@ -381,7 +421,6 @@ importFileInput.addEventListener('change', async () => {
     bookmarks.splice(0, bookmarks.length, ...Array.from(merged.values()).sort((left, right) => right.createdAt - left.createdAt));
     saveBookmarks();
     render();
-    setStatus('データを取り込みました');
   } catch (error) {
     setStatus(error instanceof Error ? error.message : 'インポートに失敗しました');
   }
@@ -410,14 +449,12 @@ list.addEventListener('click', async (event) => {
     bookmark.title = trimmedTitle || bookmark.label || bookmark.domain;
     saveBookmarks();
     render();
-    setStatus('タイトルを更新しました');
   }
 
   if (button.dataset.action === 'favorite') {
     bookmark.favorite = !bookmark.favorite;
     saveBookmarks();
     render();
-    setStatus(bookmark.favorite ? '★ を追加しました' : '★ を解除しました');
   }
 
   if (button.dataset.action === 'delete') {
@@ -431,7 +468,6 @@ list.addEventListener('click', async (event) => {
       bookmarks.splice(nextIndex, 1);
       saveBookmarks();
       render();
-      setStatus('削除しました');
     }
   }
 });
@@ -444,10 +480,6 @@ if ('serviceWorker' in navigator) {
       // Offline support is best-effort.
     });
   });
-}
-
-if (incomingShare.url && !incomingShare.saveOnLoad) {
-  setStatus('タイトルとURLを受け取りました。必要なら保存してください。');
 }
 
 render();
