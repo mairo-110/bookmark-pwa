@@ -166,6 +166,12 @@ async function initSettingsPage() {
   const statusElement = document.querySelector('#settings-status');
 
   const currentSettings = loadSettings();
+
+  if (hasSavedProviders(currentSettings)) {
+    window.location.replace('./index.html');
+    return;
+  }
+
   provider1Input.value = currentSettings.provider1;
   provider2Input.value = currentSettings.provider2;
   provider3Input.value = currentSettings.provider3;
@@ -173,18 +179,22 @@ async function initSettingsPage() {
   async function handleSaveSettings(event) {
     event.preventDefault();
 
+    const provider1 = provider1Input.value.trim();
+    const provider2 = provider2Input.value.trim();
+    const provider3 = provider3Input.value.trim();
+
+    if (!isDomainEntryFilled(provider1) || !isDomainEntryFilled(provider2) || !isDomainEntryFilled(provider3)) {
+      setStatus(statusElement, '3つのドメインをすべて入力してください。', 'error');
+      return;
+    }
+
     try {
       setLoading([saveButton], true);
-      const savedSettings = saveSettings({
-        provider1: provider1Input.value,
-        provider2: provider2Input.value,
-        provider3: provider3Input.value,
+      saveSettings({
+        provider1,
+        provider2,
+        provider3,
       });
-
-      if (!isDomainEntryFilled(savedSettings.provider1) || !isDomainEntryFilled(savedSettings.provider2) || !isDomainEntryFilled(savedSettings.provider3)) {
-        setStatus(statusElement, '3つのドメインをすべて入力してください。', 'error');
-        return;
-      }
 
       setStatus(statusElement, '設定を保存しました。', 'success');
       window.location.replace('./index.html');
