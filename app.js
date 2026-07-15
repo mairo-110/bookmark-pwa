@@ -86,9 +86,9 @@ function buildLabel(url) {
 
 function readIncomingShare() {
   const params = new URLSearchParams(window.location.search);
-  const urlValue = params.get('url')?.trim() ?? '';
-  const titleValue = params.get('title')?.trim() ?? '';
-  const payloadValue = params.get('payload')?.trim() ?? '';
+  const urlValue = normalizeIncomingValue(params.get('url'));
+  const titleValue = normalizeIncomingValue(params.get('title'));
+  const payloadValue = normalizeIncomingValue(params.get('payload'));
   const saveOnLoad = params.get('save') === '1' || params.get('autopost') === '1';
 
   const payload = parseIncomingPayload(payloadValue);
@@ -100,13 +100,44 @@ function readIncomingShare() {
   };
 }
 
+function normalizeIncomingValue(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return decodeRepeatedly(value.trim());
+}
+
+function decodeRepeatedly(value) {
+  let current = value;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!/%[0-9A-Fa-f]{2}/.test(current)) {
+      break;
+    }
+
+    try {
+      const decoded = decodeURIComponent(current);
+      if (decoded === current) {
+        break;
+      }
+
+      current = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return current;
+}
+
 function parseIncomingPayload(payloadValue) {
   if (!payloadValue) {
     return { url: '', title: '' };
   }
 
   try {
-    const normalized = payloadValue.startsWith('{') ? payloadValue : decodeURIComponent(payloadValue);
+    const normalized = decodeRepeatedly(payloadValue.startsWith('{') ? payloadValue : payloadValue);
     const parsed = JSON.parse(normalized);
 
     return {
