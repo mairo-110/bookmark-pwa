@@ -32,8 +32,6 @@ Safari の共有から iPhone のショートカットでこの PWA を開くと
 
 空白を含むタイトルは `payload` 方式が安全です。
 
-`share` に `タイトル|URL` か `タイトル - URL` を入れる形式も使えます。
-
 例: `index.html?payload=%7B%22url%22%3A%22https%3A%2F%2Fexample.com%2Farticle%22%2C%22title%22%3A%22記事 の タイトル%22%7D&save=1`
 
 ## 補足
