@@ -44,8 +44,8 @@ async function respondWithNavigation(request) {
     cache.put(request, networkResponse.clone());
     return networkResponse;
   } catch {
-    const cachedIndex = await caches.match('./index.html');
-    return cachedIndex ?? caches.match('./setting.html');
+    const cachedSettings = await caches.match('./setting.html');
+    return cachedSettings ?? caches.match('./index.html');
   }
 }
 
