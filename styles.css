@@ -218,6 +218,59 @@ h1 {
   display: block;
 }
 
+.domain-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  scrollbar-width: none;
+}
+
+.domain-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.domain-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 180px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(2, 6, 23, 0.42);
+  color: var(--text);
+  cursor: pointer;
+  flex: none;
+}
+
+.domain-tab.active {
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.12);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(2, 6, 23, 0.48));
+}
+
+.domain-tab-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-tab-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.domain-tab-favorite {
+  color: #fde68a;
+}
+
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
@@ -300,6 +353,27 @@ h1 {
   gap: 10px;
 }
 
+.favorite-toggle {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.9);
+  color: #cbd5e1;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.favorite-toggle.active {
+  border-color: rgba(250, 204, 21, 0.75);
+  background: rgba(250, 204, 21, 0.16);
+  color: #facc15;
+  box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.08);
+}
+
 .bookmark-title {
   margin: 0;
   font-size: 1.05rem;
@@ -307,32 +381,10 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.favorite-mark {
-  width: 1.2rem;
-  flex: none;
-  font-size: 1.1rem;
-  line-height: 1;
-  color: #facc15;
-  text-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
-}
-
-.favorite-badge {
-  background: linear-gradient(135deg, rgba(250, 204, 21, 0.2), rgba(251, 191, 36, 0.08));
-  color: #fde68a;
-}
-
 .bookmark-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.bookmark.favorite .bookmark-action {
-  background: rgba(250, 204, 21, 0.14);
-}
-
-.bookmark.favorite .bookmark-action:hover {
-  background: rgba(250, 204, 21, 0.2);
 }
 
 .bookmark-action.delete {

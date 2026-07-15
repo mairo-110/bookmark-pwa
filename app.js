@@ -11,9 +11,11 @@ const list = document.getElementById('bookmark-list');
 const count = document.getElementById('bookmark-count');
 const clearAllButton = document.getElementById('clear-all');
 const status = document.getElementById('status');
+const domainTabs = document.getElementById('domain-tabs');
 
 const incomingShare = readIncomingShare();
 const bookmarks = loadBookmarks();
+let activeDomain = '';
 
 if (incomingShare.url) {
   titleInput.value = incomingShare.title ?? '';
@@ -88,13 +90,34 @@ function readIncomingShare() {
   const params = new URLSearchParams(window.location.search);
   const urlValue = params.get('url')?.trim() ?? '';
   const titleValue = params.get('title')?.trim() ?? '';
+  const payloadValue = params.get('payload')?.trim() ?? '';
   const saveOnLoad = params.get('save') === '1' || params.get('autopost') === '1';
 
+  const payload = parseIncomingPayload(payloadValue);
+
   return {
-    url: urlValue,
-    title: titleValue,
+    url: payload.url || urlValue,
+    title: payload.title || titleValue,
     saveOnLoad,
   };
+}
+
+function parseIncomingPayload(payloadValue) {
+  if (!payloadValue) {
+    return { url: '', title: '' };
+  }
+
+  try {
+    const normalized = payloadValue.startsWith('{') ? payloadValue : decodeURIComponent(payloadValue);
+    const parsed = JSON.parse(normalized);
+
+    return {
+      url: typeof parsed.url === 'string' ? parsed.url.trim() : '',
+      title: typeof parsed.title === 'string' ? parsed.title.trim() : '',
+    };
+  } catch {
+    return { url: '', title: '' };
+  }
 }
 
 function clearIncomingShare() {
@@ -138,6 +161,7 @@ function render() {
   count.textContent = String(bookmarks.length);
 
   if (bookmarks.length === 0) {
+    domainTabs.innerHTML = '';
     list.innerHTML = '<p class="empty-state">まだブックマークはありません。URLを1つ貼り付けて保存してください。</p>';
     return;
   }
@@ -152,44 +176,62 @@ function render() {
   }, {});
 
   const sortedDomains = Object.keys(grouped).sort((left, right) => left.localeCompare(right, 'ja'));
+  if (!sortedDomains.includes(activeDomain)) {
+    activeDomain = sortedDomains[0];
+  }
+
   const sortMode = sortModeSelect?.value ?? 'favorite-first';
 
-  list.innerHTML = sortedDomains
+  domainTabs.innerHTML = sortedDomains
     .map((domain) => {
-      const items = grouped[domain]
-        .sort((left, right) => sortBookmarks(left, right, sortMode))
-        .map(
-          (bookmark) => `
-            <article class="bookmark${bookmark.favorite ? ' favorite' : ''}" data-id="${bookmark.id}">
-              <div class="bookmark-top">
-                <div class="bookmark-title-wrap">
-                  <span class="favorite-mark" aria-hidden="true">${bookmark.favorite ? '★' : '☆'}</span>
-                  <p class="bookmark-title">${escapeHtml(bookmark.title || bookmark.label)}</p>
-                </div>
-                <span class="badge ${bookmark.favorite ? 'favorite-badge' : ''}">${bookmark.favorite ? 'お気に入り' : '通常'}</span>
-              </div>
-              <div class="bookmark-actions">
-                <a class="bookmark-action" href="${escapeAttribute(bookmark.url)}" target="_blank" rel="noreferrer">開く</a>
-                <button class="bookmark-action" type="button" data-action="edit-title">タイトル編集</button>
-                <button class="bookmark-action" type="button" data-action="favorite">${bookmark.favorite ? 'お気に入り解除' : 'お気に入り'}</button>
-                <button class="bookmark-action delete" type="button" data-action="delete">削除</button>
-              </div>
-            </article>
-          `,
-        )
-        .join('');
+      const domainItems = grouped[domain];
+      const favoriteCount = domainItems.filter((bookmark) => bookmark.favorite).length;
+      const isActive = domain === activeDomain;
 
       return `
-        <section class="group" aria-label="${escapeAttribute(domain)}">
-          <div class="group-header">
-            <h2>${escapeHtml(domain)}</h2>
-            <span class="badge">${grouped[domain].length}</span>
-          </div>
-          <div class="group-items">${items}</div>
-        </section>
+        <button class="domain-tab${isActive ? ' active' : ''}" type="button" data-domain="${escapeAttribute(domain)}" aria-pressed="${isActive ? 'true' : 'false'}">
+          <span class="domain-tab-name">${escapeHtml(domain)}</span>
+          <span class="domain-tab-meta">
+            <span>${domainItems.length}</span>
+            ${favoriteCount > 0 ? `<span class="domain-tab-favorite" aria-label="お気に入り件数">★</span><span>${favoriteCount}</span>` : ''}
+          </span>
+        </button>
       `;
     })
     .join('');
+
+  const activeItems = (grouped[activeDomain] ?? [])
+    .sort((left, right) => sortBookmarks(left, right, sortMode));
+
+  list.innerHTML = `
+    <section class="group" aria-label="${escapeAttribute(activeDomain)}">
+      <div class="group-header">
+        <h2>${escapeHtml(activeDomain)}</h2>
+        <span class="badge">${activeItems.length}</span>
+      </div>
+      <div class="group-items">
+        ${activeItems
+          .map(
+            (bookmark) => `
+              <article class="bookmark${bookmark.favorite ? ' favorite' : ''}" data-id="${bookmark.id}">
+                <div class="bookmark-top">
+                  <div class="bookmark-title-wrap">
+                    <p class="bookmark-title">${escapeHtml(bookmark.title || bookmark.label)}</p>
+                  </div>
+                  <button class="favorite-toggle${bookmark.favorite ? ' active' : ''}" type="button" data-action="favorite" aria-label="${bookmark.favorite ? 'お気に入りを解除' : 'お気に入りに追加'}">${bookmark.favorite ? '★' : '☆'}</button>
+                </div>
+                <div class="bookmark-actions">
+                  <a class="bookmark-action" href="${escapeAttribute(bookmark.url)}" target="_blank" rel="noreferrer">開く</a>
+                  <button class="bookmark-action" type="button" data-action="edit-title">タイトル編集</button>
+                  <button class="bookmark-action delete" type="button" data-action="delete">削除</button>
+                </div>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `;
 }
 
 function sortBookmarks(left, right, sortMode) {
@@ -274,6 +316,16 @@ clearAllButton.addEventListener('click', () => {
 });
 
 sortModeSelect.addEventListener('change', () => {
+  render();
+});
+
+domainTabs.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-domain]');
+  if (!button) {
+    return;
+  }
+
+  activeDomain = button.dataset.domain ?? activeDomain;
   render();
 });
 
@@ -365,7 +417,7 @@ list.addEventListener('click', async (event) => {
     bookmark.favorite = !bookmark.favorite;
     saveBookmarks();
     render();
-    setStatus(bookmark.favorite ? 'お気に入りに追加しました' : 'お気に入りを解除しました');
+    setStatus(bookmark.favorite ? '★ を追加しました' : '★ を解除しました');
   }
 
   if (button.dataset.action === 'delete') {
