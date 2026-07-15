@@ -38,6 +38,19 @@ function setLoading(buttons, isLoading) {
 }
 
 async function initMainPage() {
+  const currentUrl = new URL(window.location.href);
+
+  if (currentUrl.searchParams.has('provider1') || currentUrl.searchParams.has('provider2') || currentUrl.searchParams.has('provider3')) {
+    saveSettings({
+      provider1: currentUrl.searchParams.get('provider1'),
+      provider2: currentUrl.searchParams.get('provider2'),
+      provider3: currentUrl.searchParams.get('provider3'),
+    });
+
+    currentUrl.search = '';
+    window.history.replaceState({}, '', currentUrl.toString());
+  }
+
   const settings = loadSettings();
 
   if (!hasSavedProviders(settings)) {
@@ -197,7 +210,11 @@ async function initSettingsPage() {
       });
 
       setStatus(statusElement, '設定を保存しました。', 'success');
-      window.location.replace('./index.html');
+      const nextUrl = new URL('./index.html', window.location.href);
+      nextUrl.searchParams.set('provider1', provider1);
+      nextUrl.searchParams.set('provider2', provider2);
+      nextUrl.searchParams.set('provider3', provider3);
+      window.location.replace(nextUrl.toString());
     } catch (error) {
       setStatus(statusElement, getErrorMessage(error), 'error');
     } finally {
